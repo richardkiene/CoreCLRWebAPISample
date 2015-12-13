@@ -97,7 +97,14 @@ Transfer/sec:      1.20MB
 
 ## Current dtrace / stack / OS metrics
 
-* Running (mytrace.d)[https://gist.github.com/richardkiene/baaa15bbe7e5b8975045] yields:
+* [core.74241](http://us-east.manta.joyent.com/shmeeny/public/core.74241) for use with mdb
+
+* Current points of suspicion:
+  * https://github.com/dotnet/coreclr/blob/a6bcc41247dc7fcf283219307e43dd12a43bf2d7/src/pal/src/thread/thread.cpp)
+  * https://github.com/dotnet/coreclr/blob/a6bcc41247dc7fcf283219307e43dd12a43bf2d7/src/pal/src/sync/cs.cpp
+
+
+* Running [mytrace.d](https://gist.github.com/richardkiene/baaa15bbe7e5b8975045) yields:
 
 ```
 PID             EXECNAME                 FUNC      COUNT
@@ -128,6 +135,27 @@ PID             EXECNAME                 FUNC      COUNT
 85636              dnx libcoreclr.so`_ZN13ThreadpoolMgr15UnfairSemaphore4WaitEj        218
 ```
 
-* Using Brendan Gregg's FlameGraph [instructions] yields:
+* `prstat -mLc 1` yields:
+```
+Total: 19 processes, 133 lwps, load averages: 0.25, 0.51, 0.38
+   PID USERNAME USR SYS TRP TFL DFL LCK SLP LAT VCX ICX SCL SIG PROCESS/LWPID
+ 74241 root     4.9 4.9 0.0 0.0 0.0 0.0  90 0.5 917  15 11K   0 dnx/29
+ 74241 root     2.9 0.7 0.0 0.0 0.0  96 0.0 0.1 141   2  1K   0 dnx/81
+ 74241 root     2.4 0.9 0.0 0.0 0.0  97 0.0 0.1 132   4  1K   0 dnx/111
+ 74241 root     2.5 0.8 0.0 0.0 0.0  97 0.0 0.1 133   0  1K   0 dnx/95
+ 74241 root     2.5 0.8 0.0 0.0 0.0  97 0.0 0.1 128   5  1K   0 dnx/102
+ 74241 root     2.4 0.8 0.0 0.0 0.0  97 0.0 0.1 142   9  1K   0 dnx/85
+ 74241 root     2.4 0.8 0.0 0.0 0.0  97 0.0 0.1 143   3  1K   0 dnx/78
+ 74241 root     2.7 0.5 0.0 0.0 0.0  97 0.0 0.1 130   3  1K   0 dnx/113
+ 74241 root     2.6 0.6 0.0 0.0 0.0  97 0.0 0.1 140   3  1K   0 dnx/106
+ 74241 root     2.4 0.7 0.0 0.0 0.0  97 0.0 0.1 115   0  1K   0 dnx/110
+ 74241 root     2.3 0.8 0.0 0.0 0.0  97 0.0 0.1 136   6  1K   0 dnx/92
+ 74241 root     2.4 0.7 0.0 0.0 0.0  97 0.0 0.1 142   1  1K   0 dnx/107
+ 74241 root     2.5 0.6 0.0 0.0 0.0  97 0.0 0.1 129   3  1K   0 dnx/103
+ 74241 root     2.4 0.7 0.0 0.0 0.0  97 0.0 0.1 116   3  1K   0 dnx/84
+ 74241 root     2.4 0.7 0.0 0.0 0.0  97 0.0 0.1 129   4  1K   0 dnx/96
+```
+
+* Using Brendan Gregg's FlameGraph [instructions](https://github.com/brendangregg/FlameGraph#1-capture-stacks) yields:
 
 ![dnx_stack_flamegraph](http://us-east.manta.joyent.com/shmeeny/public/dnx_user_flame.svg)
