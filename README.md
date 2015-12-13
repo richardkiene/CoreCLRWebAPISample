@@ -99,9 +99,17 @@ Transfer/sec:      1.20MB
 
 * [core.74241](http://us-east.manta.joyent.com/shmeeny/public/core.74241) for use with mdb
 
+* Create and analyze your own core file:
+```
+$ gcore `pgrep dnx`
+$ mdb core.`pgrep dnx`
+> ::stacks
+> <address>::dis
+```
+
 * Current points of suspicion:
-  * https://github.com/dotnet/coreclr/blob/a6bcc41247dc7fcf283219307e43dd12a43bf2d7/src/pal/src/thread/thread.cpp)
-  * https://github.com/dotnet/coreclr/blob/a6bcc41247dc7fcf283219307e43dd12a43bf2d7/src/pal/src/sync/cs.cpp
+  * [pal/thread.cpp](https://github.com/dotnet/coreclr/blob/a6bcc41247dc7fcf283219307e43dd12a43bf2d7/src/pal/src/thread/thread.cpp)
+  * [pal/cs.pp](https://github.com/dotnet/coreclr/blob/a6bcc41247dc7fcf283219307e43dd12a43bf2d7/src/pal/src/sync/cs.cpp)
 
 
 * Running [mytrace.d](https://gist.github.com/richardkiene/baaa15bbe7e5b8975045) yields:
