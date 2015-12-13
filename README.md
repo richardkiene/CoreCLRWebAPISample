@@ -30,7 +30,7 @@ $ dnx web
 
 * On machine #2
 ```
-$./wrk -t8 -c32 -d30s http://localhost:8080/values/5
+$./wrk -t8 -c32 -d30s http://192.168.1.2:8080/values/5
 ```
 
 ## Current benchmarks (w/ comparisons to other envs)
