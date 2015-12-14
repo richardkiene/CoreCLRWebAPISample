@@ -15,8 +15,7 @@ this sample demonstrates the slowness while keeping complexity and scope narrow.
 * Create an LX branded zone (preferably Ubuntu 14.04)
     * If you want the fastest route use [Triton](https://www.joyent.com)
     * If you prefer your own gear use [SmartOS](https://wiki.smartos.org/display/DOC/LX+Branded+Zones)
-* Follow the instructions for "[building CoreCLR](https://github.com/dotnet/coreclr/tree/master/Documentation/building)"
-to setup your LX zone.
+* Follow the instructions for [setting up dnx](http://docs.asp.net/en/latest/getting-started/installing-on-linux.html).
 * Install [wrk benchmark](https://github.com/wg/wrk/wiki/Installing-Wrk-on-Linux) (preferably on a different VM on the same L2 network)
 
 ## Running
