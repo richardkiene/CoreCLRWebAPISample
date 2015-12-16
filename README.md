@@ -33,8 +33,23 @@ $./wrk -t8 -c32 -d30s http://192.168.1.2:8080/values/5
 ```
 
 ## Current benchmarks (w/ comparisons to other envs)
-#### CoreCLR on LX Ubuntu 14.04
+#### UPDATE: *CoreCLR 1.0.0-rc2-16308 contains a partial fix for lock contention. The reason the VMWare Ubuntu stats look better is due to core count (2 vs 48 on the LX machine). More cores equates to more locking. 1.0.0-rc2-16308 has been added to the LX benchmark, but more details are on the way.*
+#### CoreCLR 1.0.0-rc2-16308 on LX Ubuntu 14.04
 ```
+$ wrk -t8 -c32 -d30s http://192.168.128.13:8080/values/5
+Running 30s test @ http://192.168.128.13:8080/values/5
+  8 threads and 32 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     4.52ms    7.56ms  98.51ms   90.60%
+    Req/Sec     1.63k   298.02     2.31k    80.29%
+  389026 requests in 30.02s, 56.76MB read
+Requests/sec:  12959.73
+Transfer/sec:      1.89MB
+```
+
+#### CoreCLR 1.0.0-rc1-update1 on LX Ubuntu 14.04
+```
+#
 $ wrk -t8 -c32 -d30s http://192.168.128.8:8080/values/5
 Running 30s test @ http://192.168.128.8:8080/values/5
   8 threads and 32 connections
@@ -45,6 +60,7 @@ Running 30s test @ http://192.168.128.8:8080/values/5
 Requests/sec:   1105.56
 Transfer/sec:    169.65KB
 ```
+
 #### Node.js on LX Ubuntu 14.04
 ```
 $ wrk -t8 -c32 -d30s http://192.168.128.8:8080/values/5
@@ -106,10 +122,18 @@ $ mdb core.`pgrep dnx`
 > <address>::dis
 ```
 
-* Current points of suspicion:
-  * [pal/thread.cpp](https://github.com/dotnet/coreclr/blob/a6bcc41247dc7fcf283219307e43dd12a43bf2d7/src/pal/src/thread/thread.cpp)
-  * [pal/cs.pp](https://github.com/dotnet/coreclr/blob/a6bcc41247dc7fcf283219307e43dd12a43bf2d7/src/pal/src/sync/cs.cpp)
+## Current findings
 
+* String comparisons are naturally made all over the place in MVC (both for
+route handling and input / output formatting). Many of these are culture
+sensitive unicode comparisons that call into ICU. In the RC1 release of CoreCLR,
+collators were not cached and each string comparison created a new collator and
+an expensive global lock. In the RC2 release of CoreCLR collators are cached,
+but comparison operations still end up creating a global lock in ICU due to the
+nature of ICU code. This is intended as a brief and incremental update, and more
+information will be updated to this repo soon.
+
+* Known CoreCLR hot spots: [collation.cpp](https://github.com/dotnet/coreclr/blob/15706ebfda035867c3435343d08c33dec579d5dc/src/corefx/System.Globalization.Native/collation.cpp#L502)
 
 * Running [mytrace.d](https://gist.github.com/richardkiene/baaa15bbe7e5b8975045) yields:
 
