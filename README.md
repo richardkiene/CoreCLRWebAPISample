@@ -1,7 +1,7 @@
 # CoreCLRWebAPISample
 Sample CoreCLR WebAPI application used for trivial benchmarking
 
-* CoreCLR performance on SmartOS LX branded Zones is currently sub-optimal. This
+* CoreCLR performance on SmartOS LX branded Zones is _AWESOME_. This
 repo is here to document the steps used for benchmarking, list current and
 historical benchmark numbers, list current findings / progress, and hopefully
 lower the barrier to entry so others can join in the fun.
@@ -34,7 +34,21 @@ $./wrk -t8 -c32 -d30s http://192.168.1.2:8080/values/5
 
 ## Current benchmarks (w/ comparisons to other envs)
 #### UPDATE: *CoreCLR 1.0.0-rc2-16308 contains a partial fix for lock contention. The reason the VMWare Ubuntu stats look better is due to core count (2 vs 48 on the LX machine). More cores equates to more locking. 1.0.0-rc2-16308 has been added to the LX benchmark, but more details are on the way.*
-#### CoreCLR 1.0.0-rc2-16308 on LX Ubuntu 14.04
+
+#### CoreCLR 1.0.0-rc2-16308 + master build System.ComponentModel.TypeConverter on LX Ubuntu 14.04 (Joyent Public Cloud)
+```
+wrk -t8 -c32 -d30s http://192.168.128.8:8080/values/5
+Running 30s test @ http://192.168.128.8:8080/values/5
+  8 threads and 32 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     3.35ms    4.47ms  71.39ms   89.70%
+    Req/Sec     1.84k   225.02     2.36k    69.33%
+  439021 requests in 30.02s, 64.06MB read
+Requests/sec:  14625.69
+Transfer/sec:      2.13MB
+```
+
+#### CoreCLR 1.0.0-rc2-16308 on LX Ubuntu 14.04 (Joyent Public Cloud)
 ```
 $ wrk -t8 -c32 -d30s http://192.168.128.13:8080/values/5
 Running 30s test @ http://192.168.128.13:8080/values/5
@@ -47,7 +61,7 @@ Requests/sec:  12959.73
 Transfer/sec:      1.89MB
 ```
 
-#### CoreCLR 1.0.0-rc1-update1 on LX Ubuntu 14.04
+#### CoreCLR 1.0.0-rc1-update1 on LX Ubuntu 14.04 (Joyent Public Cloud)
 ```
 #
 $ wrk -t8 -c32 -d30s http://192.168.128.8:8080/values/5
@@ -61,7 +75,7 @@ Requests/sec:   1105.56
 Transfer/sec:    169.65KB
 ```
 
-#### Node.js on LX Ubuntu 14.04
+#### Node.js on LX Ubuntu 14.04 (Joyent Public Cloud)
 ```
 $ wrk -t8 -c32 -d30s http://192.168.128.8:8080/values/5
 Running 30s test @ http://192.168.128.8:8080/values/5
@@ -133,10 +147,17 @@ but comparison operations still end up creating a global lock in ICU due to the
 nature of ICU code. This is intended as a brief and incremental update, and more
 information will be updated to this repo soon.
 
+* Update the largest offender of non-ordinal string comparison has been
+fixed in master. The performance increase is significant, and libicu doesn't
+even show up in the user land stack anymore. See https://github.com/dotnet/corefx/pull/5027
+for details. There are still some string comparisons that need to be ordinal but
+they only impact startup time.
+
 * Known CoreCLR hot spots: [collation.cpp](https://github.com/dotnet/coreclr/blob/15706ebfda035867c3435343d08c33dec579d5dc/src/corefx/System.Globalization.Native/collation.cpp#L502)
 
 * Running [mytrace.d](https://gist.github.com/richardkiene/baaa15bbe7e5b8975045) yields:
 
+#### OLD
 ```
 PID             EXECNAME                 FUNC      COUNT
 85636              dnx libicuuc.so.52`u_strlen_52         12
@@ -166,7 +187,39 @@ PID             EXECNAME                 FUNC      COUNT
 85636              dnx libcoreclr.so`_ZN13ThreadpoolMgr15UnfairSemaphore4WaitEj        218
 ```
 
+#### NEW
+```
+PID             EXECNAME                 FUNC      COUNT
+78290                  dnx libcoreclr.so`JIT_IsInstanceOfClass_Portable         70
+78290                  dnx libcoreclr.so`JIT_MonExit_Portable         70
+78290                  dnx libcoreclr.so`_ZN7CMiniMd12vSearchTableEj11CMiniColDefjPj         70
+78290                  dnx libcoreclr.so`_ZN7CMiniMd22vSearchTableNotGreaterEj11CMiniColDefjPj         71
+78290                  dnx libcoreclr.so`ObjIsInstanceOfNoGC         77
+78290                  dnx libcoreclr.so`_Z30JIT_NewArr1OBJ_MP_FastPortableP21CORINFO_CLASS_STRUCT_l         86
+78290                  dnx libcoreclr.so`JIT_CheckedWriteBarrier         88
+78290                  dnx libcoreclr.so`JIT_GetSharedNonGCStaticBase_Portable         90
+78290                  dnx libcoreclr.so`__vdso_clock_gettime         91
+78290                  dnx libcoreclr.so`_ZN6Object25EnterObjMonitorHelperSpinEP6Thread         92
+78290                  dnx libcoreclr.so`_Z29JIT_NewArr1VC_MP_FastPortableP21CORINFO_CLASS_STRUCT_l        101
+78290                  dnx libcoreclr.so`_Z27JIT_GetGenericsGCStaticBaseP11MethodTable        119
+78290                  dnx libcoreclr.so`JIT_ByRefWriteBarrier        128
+78290                  dnx libcoreclr.so`JIT_MonReliableEnter_Portable        151
+78290                  dnx libcoreclr.so`_Z18JIT_GetRuntimeTypeP21CORINFO_CLASS_STRUCT_        168
+78290                  dnx libcoreclr.so`_ZN13ThreadpoolMgr15UnfairSemaphore4WaitEj        170
+78290                  dnx libcoreclr.so`_ZN3WKS7gc_heap31mark_through_cards_for_segmentsEPFvPPhEi        179
+78290                  dnx libcoreclr.so`JIT_WriteBarrier        183
+78290                  dnx     libc.so.6`memset        196
+78290                  dnx libcoreclr.so`_ZN3WKS7gc_heap17find_first_objectEPhS1_        227
+78290                  dnx ld-linux-x86-64.so.2`__tls_get_addr        259
+78290                  dnx libcoreclr.so`_Z24JIT_NewS_MP_FastPortableP21CORINFO_CLASS_STRUCT_        261
+78290                  dnx libcoreclr.so`_Z31JIT_GetSharedGCThreadStaticBasemj        337
+78290                  dnx libcoreclr.so`_ZN3WKSL15enter_spin_lockEPNS_15GCDebugSpinLockE       2118
+78290                  dnx libcoreclr.so`YieldProcessor      13892
+
+```
+
 * `prstat -mLc 1` yields:
+#### OLD
 ```
 Total: 19 processes, 133 lwps, load averages: 0.25, 0.51, 0.38
    PID USERNAME USR SYS TRP TFL DFL LCK SLP LAT VCX ICX SCL SIG PROCESS/LWPID
@@ -186,7 +239,29 @@ Total: 19 processes, 133 lwps, load averages: 0.25, 0.51, 0.38
  74241 root     2.4 0.7 0.0 0.0 0.0  97 0.0 0.1 116   3  1K   0 dnx/84
  74241 root     2.4 0.7 0.0 0.0 0.0  97 0.0 0.1 129   4  1K   0 dnx/96
 ```
+#### NEW
+```
+Total: 18 processes, 72 lwps, load averages: 2.04, 2.02, 2.47
+   PID USERNAME USR SYS TRP TFL DFL LCK SLP LAT VCX ICX SCL SIG PROCESS/LWPID
+ 96751 root      36  40 0.1 0.0 0.0  23 0.0 1.6  1K 286 61K   0 dnx/31
+ 96751 root      22 1.0 0.1 0.0 0.0  76 0.4 0.9 489  97  7K   0 dnx/36
+ 96751 root      22 1.1 0.1 0.0 0.0  76 0.5 0.7 479  84  7K   0 dnx/54
+ 96751 root      21 1.0 0.1 0.0 0.0  77 0.0 0.9 479 108  7K   0 dnx/71
+ 96751 root      21 0.9 0.1 0.0 0.0  77 0.5 0.8 486  75  7K   1 dnx/34
+ 96751 root      21 1.0 0.1 0.0 0.0  77 0.0 1.4 482 177  7K   0 dnx/38
+ 96751 root      19 0.9 0.1 0.0 0.0  79 0.0 0.9 494  84  7K   0 dnx/63
+ 96751 root      19 0.9 0.1 0.0 0.0  79 0.0 0.8 483  82  7K   0 dnx/61
+ 96751 root      19 0.9 0.1 0.0 0.0  79 0.0 0.8 479  91  7K   1 dnx/50
+ 96751 root      19 0.9 0.0 0.0 0.0  80 0.0 0.5 495  30  7K   0 dnx/73
+ 96751 root      18 1.0 0.1 0.0 0.0  80 0.0 1.0 483 109  7K   0 dnx/66
+ 96751 root      18 0.9 0.1 0.0 0.0  80 0.0 0.7 478  85  7K   0 dnx/42
+ 96751 root      18 0.9 0.1 0.0 0.0  80 0.0 0.8 488  76  7K   0 dnx/65
+ 96751 root      18 1.0 0.0 0.0 0.0  80 0.0 0.5 484  56  7K   0 dnx/69
+ 96751 root      18 1.0 0.1 0.0 0.0  80 0.0 0.8 489 120  7K   1 dnx/51
+```
 
 * Using Brendan Gregg's FlameGraph [instructions](https://github.com/brendangregg/FlameGraph#1-capture-stacks) yields:
-
+#### OLD
 ![dnx_stack_flamegraph](http://us-east.manta.joyent.com/shmeeny/public/dnx_user_flame.svg)
+#### NEW
+![dnx_stack_flamegraph](http://us-east.manta.joyent.com/shmeeny/public/dnx_improved_flame.svg)
