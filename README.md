@@ -35,6 +35,9 @@ $./wrk -t8 -c32 -d30s http://192.168.1.2:8080/values/5
 ## Current benchmarks (w/ comparisons to other envs)
 #### UPDATE: *CoreCLR 1.0.0-rc2-16308 contains a partial fix for lock contention. The reason the VMWare Ubuntu stats look better is due to core count (2 vs 48 on the LX machine). More cores equates to more locking. 1.0.0-rc2-16308 has been added to the LX benchmark, but more details are on the way.*
 
+#### UPDATE: *This [PR](https://github.com/dotnet/corefx/pull/5027) removes ICU
+locking from the hot path and makes things dramatically better, results are below.
+
 #### CoreCLR 1.0.0-rc2-16308 + master build System.ComponentModel.TypeConverter on LX Ubuntu 14.04 (Joyent Public Cloud)
 ```
 wrk -t8 -c32 -d30s http://192.168.128.8:8080/values/5
